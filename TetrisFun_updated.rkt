@@ -74,6 +74,7 @@
 ;; - "down" (automatically puts piece on bottom)
 ;; - "up" (clockwise rotation for 1 handed playing)
 
+;; TODO: The world should not store text, it should store a number. A few functions will have to change.
 ;; A World is a (make-world Tetra Pile Text)
 (define-struct world (tetra pile text))
 
@@ -202,7 +203,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;          DRAW WORLD          ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO: I think we can use foldr or foldl for this...probably not necessary though. Do last.
+;; TODO: I think we can use foldr for this...probably not necessary though. Do last.
 ;; to-draw function, Draws the world onto the scene
 ;; World -> Image
 (define (draw-world w)
@@ -305,7 +306,7 @@
       (make-world (move-down (world-tetra w)) (world-pile w)
                   (score (world-pile w)))))
 
-;; TODO: can move-down-blocks be a lambda/local?
+;; TODO: move-down-blocks can be a lambda/local
 ;; Moves the Tetra down by one grid-unit.
 ;; Tetra -> Tetra
 (define (move-down tetra)
@@ -381,9 +382,8 @@ DELETE ME|#
 ;; or has passed the lower bound of the grid.
 ;; BSet, Pile -> Boolean
 (define (hit-bottom? blocks pile)
-  (or
-   (ormap (λ (block) (in-pile? block pile)) blocks)
-   (ormap (λ (block) (> (block-y block) (* GRID-SIZE 19))) blocks)))
+   (ormap (λ (block) (or (in-pile? block pile)
+                         (> (block-y block) (* GRID-SIZE 19)))) blocks))
   #|(cond[(cons? blocks)
         (or (in-pile? (first blocks) pile)
             (> (block-y (first blocks)) 
@@ -396,20 +396,24 @@ DELETE ME|#
 ;; Determines if a block is overlapping with the pile
 ;; Block, Pile -> Boolean
 (define (in-pile? block pile)
-  (ormap (λ (pile-block) (same-position? block pile-block)) pile))
+  (local [(define (same-position? block1 block2)
+            (and (= (block-x block1) (block-x block2))
+                 (= (block-y block1) (block-y block2))))]
+    (ormap (λ (pile-block) (same-position? block pile-block)) pile)))
   #|(cond[(cons? pile)
         (or (same-position? block (first pile))
             (in-pile? block (rest pile)))]
        [(empty? pile) false]))|#
 
+;; TODO: make local of this function
 ;; Helper function for in-pile?
 ;; Determines if two blocks are in the same location
 ;; Block, Block -> Boolean
-(define (same-position? block1 block2)
+#|(define (same-position? block1 block2)
   (and (= (block-x block1) (block-x block2))
-       (= (block-y block1) (block-y block2))))
+       (= (block-y block1) (block-y block2))))|#
 
-;; TODO: Do you know of any loops that might work here? This feels like a loop problem...
+;; TODO: Do you know of any loops that might work here? This feels like a loop problem...I posted a piazza question
 ;; Moves a Tetra as far down as it can go
 ;; Tetra, Pile -> Tetra
 (define (move-down-bottom tetra pile)
@@ -502,22 +506,29 @@ DELETE ME|#
 ;; Moves a BSet in a given direction (left or right)
 ;; BSet, direction -> BSet
 (define (move-blocks blocks d)
-  (map (λ (block) (move-block block d)) blocks))
+  (local [(define (move-block a-block)
+            (cond[(string=? "left" d)
+                  (make-block (- (block-x a-block) GRID-SIZE)
+                              (block-y a-block) (block-color a-block))]
+                 [(string=? "right" d)
+                  (make-block (+ (block-x a-block) GRID-SIZE)
+                              (block-y a-block) (block-color a-block))]))]
+  (map (λ (block) (move-block block)) blocks)))
   #|(cond[(cons? blocks)
         (cons (move-block (first blocks) d) (move-blocks (rest blocks) d))]
        [(empty? blocks) empty]))|#
 
-;; TODO: this can probably be a lambda
+;; DID! TODO: this can probably be a lambda/local
 ;; Helper function for move-blocks
 ;; Moves a single block in a direction (left or right)
 ;; Block, direction -> Block
-(define (move-block block d)
+#|(define (move-block block d)
   (cond[(string=? "left" d)
         (make-block (- (block-x block) GRID-SIZE)
                     (block-y block) (block-color block))]
        [(string=? "right" d)
         (make-block (+ (block-x block) GRID-SIZE)
-                    (block-y block) (block-color block))]))
+                    (block-y block) (block-color block))]))|#
 
 ;; Helper function for shift-piece-help
 ;; Rotates a Tetra in a given direction (cw or ccw)
@@ -555,21 +566,27 @@ DELETE ME|#
 ;; Rotates a BSet about a Posn
 ;; BSet, Posn, direction -> BSet
 (define (rotate-blocks blocks center d)
-  (map (λ (block) (block-rotate center block d)) blocks))
+  (local [(define (block-rotate block)
+            (cond[(string=? "a" d)
+                  (block-rotate-ccw center block)]
+                 [(or (string=? "s" d) (string=? "up" d))
+                  (block-rotate-cw center block)]))]
+    (map (λ (block) (block-rotate block)) blocks)))
   #|(cond[(cons? blocks) (cons (block-rotate center (first blocks) d)
                              (rotate-blocks (rest blocks) center d))]
        [(empty? blocks) empty]))|#
 
-;; TODO: Could this be a lambda or local?
+;; DID! TODO: Could this be a lambda or local?
 ;; Helper function for rotate-blocks
 ;; Rotates the block 90 degrees about the Posn
 ;; Posn, Block, direction -> Block
-(define (block-rotate center block d)
+#|(define (block-rotate center block d)
   (cond[(string=? "a" d)
         (block-rotate-ccw center block)]
        [(or (string=? "s" d) (string=? "up" d))
-        (block-rotate-cw center block)]))
+        (block-rotate-cw center block)]))|#
 
+;; This could also be a local in rotate-blocks...I guess
 ;; Helper function for block-rotate
 ;; Rotate the block 90 clockwise around the posn.
 ;; block-rotate-ccw : Posn Block -> Block
@@ -582,6 +599,7 @@ DELETE ME|#
                     (posn-x ctr)))
               (block-color blk)))
 
+;; This could also be a local...but maybe that's going a bit overboard?
 ;; Helper function for block-rotate
 ;; Rotate the block 90 counter-clockwise around the posn.
 ;; block-rotate-ccw : Posn Block -> Block
@@ -701,7 +719,7 @@ DELETEME!!!
 (define world1 (make-world (new-tetra (random 7) empty) empty (score empty)))
 
 ;; Launch the game
-;(main world1)
+(main world1)
 
 
 
