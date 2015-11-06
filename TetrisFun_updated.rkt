@@ -8,7 +8,7 @@
 ;; Neidhart, Ethan
 ;; Unaka, Muigai
 
-;; Problem 6 - Tetris
+;; Problem 4 - Tetris
 
 ;; This code has been divided into 5 sections:
 ;; - The main function
@@ -210,7 +210,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;          DRAW WORLD          ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO: I think we can use foldr for this...probably not necessary though. Do last.
+
 ;; to-draw function, Draws the world onto the scene
 ;; World -> Image
 (define (draw-world w)
@@ -218,24 +218,11 @@
               (draw-tetra (tetra-ghost (world-tetra w))
                           (draw-blocks (world-pile w) (draw-score (world-score w) GRID)))))
 
-;; DID! TODO: Replace with lambda
-;; Draws a single block
-;; Block -> Image
-#|(define (draw-block color)
-  (overlay (square 25 "outline" "black")
-           (square 25 "solid" color)))
-
-(check-expect (draw-block "red") (overlay (square 25 "outline" "black")
-                                          (square 25 "solid" "red")))
-(check-expect (draw-block "green") (overlay (square 25 "outline" "black")
-                                            (square 25 "solid" "green")))|#
-
 ;; Draws a tetra on a scene
 ;; Tetra, Image -> Image
 (define (draw-tetra tetra scene)
   (draw-blocks (tetra-blocks tetra) scene))
 
-;; DID! TODO: map or fold will probably work well here
 ;; Draws pile, Helper function for draw-tetra
 ;; Draws each block of a BSet
 ;; BSet, Image -> Image
@@ -312,7 +299,6 @@
       (make-world (move-down (world-tetra w)) (world-pile w)
                   (world-score w))))
 
-;; TODO: move-down-blocks can be a local
 ;; Moves the Tetra down by one grid-unit.
 ;; Tetra -> Tetra
 (define (move-down tetra)
@@ -322,7 +308,6 @@
               (move-down-blocks (tetra-blocks tetra))
               (tetra-ghost tetra)))
 
-;; DID! TODO: Map will probably work well here
 ;; Helper function for move-down.
 ;; Moves a BSet down by one grid-unit.
 ;; BSet -> BSet
@@ -332,15 +317,6 @@
                         (+ (block-y block) GRID-SIZE)
                         (block-color block)))]
     (map move-down-block blocks)))
-#|(cond[(cons? blocks) 
-        (cons (make-block (block-x (first blocks)) 
-                          (+ (block-y (first blocks)) GRID-SIZE)
-                          (block-color (first blocks)))
-              (move-down-help (rest blocks)))]
-       [(empty? blocks) empty]))
-DELETE ME
-DELETE ME
-DELETE ME|#
 
 ;; Returns a new Tetra of the specified type.
 ;; Also creates the Tetra's Ghost (not defined for constants)
@@ -361,28 +337,13 @@ DELETE ME|#
        [(= type 6)
         (ghost-tetra TETRA-S pile)]))
 
-;; Block, Block ->
-
+;; Determines if the line that contains the given block is full
 ;; Pile, Number -> Boolean
 (define (full-line? pile a-block)
   (= (length (filter (λ (block) (= (block-y a-block) (block-y block))) pile)) 10))
 
-
-
-#|(fourth (map (λ (block) (if (full-line? grown-pile block)
-                                (append (filter (λ (pile-block)
-                                                  (< (block-y pile-block) (block-y block)))
-                                                grown-pile)
-                                        (move-down-blocks
-                                         (filter
-                                          (λ (pile-block)
-                                            (> (block-y pile-block) (block-y block))) grown-pile)))
-                                grown-pile)) added-blocks)))|#
-
-
-
-;; DID! TODO: append probably works best here
 ;; Adds a BSet to a Pile
+;; Removes full lines created by the addition of a new BSet
 ;; Pile, BSet -> Pile
 (define (grow-pile pile blocks)
   (local [(define (line-remover grown-pile added-blocks)
@@ -401,415 +362,281 @@ DELETE ME|#
     (if (ormap (λ (block) (full-line? (append blocks pile) block)) blocks)
         (line-remover (append blocks pile) blocks)
         (append blocks pile))))
-  
-  #| (cond[(cons? blocks) (cons (first blocks) 
-                             (grow-pile pile (rest blocks)))]
-       [(empty? blocks) pile])) |#
-  
-  ;; Makes a txt containing the user's score determined by pile size,
-  ;; at the correct location for a score.
-  ;; Pile -> txt
-  (define (score current-score)
-    (+ 4 current-score))
-  
-  ;; TODO: score should just be a number saved in the world...not calculated from scratch
-  ;; Determines the player's score from the pile
-  ;; Pile -> number
-  #|(define (compute-score pile)
-      (cond[(cons? pile)
-            (+ 1 (compute-score (rest pile)))]
-           [(empty? pile) 0]))|#
-  
-  ;; DID! TODO: ormap is probably best here
-  ;; Determines if a set of blocks is overlapping with the pile,
-  ;; or has passed the lower bound of the grid.
-  ;; BSet, Pile -> Boolean
-  (define (hit-bottom? blocks pile)
-    (ormap (λ (block) (or (in-pile? block pile)
-                          (> (block-y block) (* GRID-SIZE 19)))) blocks))
-  #|(cond[(cons? blocks)
-        (or (in-pile? (first blocks) pile)
-            (> (block-y (first blocks)) 
-               (* GRID-SIZE 19))
-            (hit-bottom? (rest blocks) pile))]
-       [(empty? blocks) false]))|#
-  
-  ;; DID! TODO: ormap is probably best here
-  ;; Helper function for hit-bottom?
-  ;; Determines if a block is overlapping with the pile
-  ;; Block, Pile -> Boolean
-  (define (in-pile? block pile)
-    (local [(define (same-position? block1 block2)
-              (and (= (block-x block1) (block-x block2))
-                   (= (block-y block1) (block-y block2))))]
-      (ormap (λ (b) (same-position? block b)) pile)))
-  #|(cond[(cons? pile)
-        (or (same-position? block (first pile))
-            (in-pile? block (rest pile)))]
-       [(empty? pile) false]))|#
-  
-  ;; TODO: make local of this function
-  ;; Helper function for in-pile?
-  ;; Determines if two blocks are in the same location
-  ;; Block, Block -> Boolean
-  #|(define (same-position? block1 block2)
-  (and (= (block-x block1) (block-x block2))
-       (= (block-y block1) (block-y block2))))|#
-  
-  ;; DID! TODO: Do you know of any loops that might work here? I made my own
-  ;; Moves a Tetra as far down as it can go
-  ;; Tetra, Pile -> Tetra
-  (define (move-down-bottom tetra pile)
-    (while-apply move-down
-                 (λ (a-tetra)
-                   (hit-bottom? (tetra-blocks (move-down a-tetra)) pile))
-                 tetra))
-  #|(if (hit-bottom? (tetra-blocks (move-down tetra)) pile)
-      tetra
-      (move-down-bottom (move-down tetra) pile)))|#
-  
-  ;; Given any Tetra, returns the same Tetra, but with a ghost underneath
-  ;; Tetra -> Tetra
-  (define (ghost-tetra tetra pile)
-    (make-tetra (tetra-center tetra)
-                (tetra-blocks tetra)
-                (move-down-bottom (make-tetra (tetra-center tetra)
-                                              (seethru (tetra-blocks tetra))
-                                              empty)
-                                  pile)))
-  
-  ;; DID! TODO: Map will probably work best here
-  ;; Colors a set of blocks light gray (for the ghost)
-  ;; BSet -> BSet
-  (define (seethru blocks)
-    (map (λ (block) (make-block (block-x block)
-                                (block-y block)
-                                "LightGray"))
-         blocks))
-  #|(cond[(cons? blocks)
-        (cons (make-block (block-x (first blocks))
-                          (block-y (first blocks))
-                          "LightGray")
-              (seethru (rest blocks)))]
-       [(empty? blocks) empty]))|#
-  
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;;;;;;;;;;;;;;;;;;;;;;;;          SHIFT PIECE          ;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  
-  ;; World, Key -> World
-  ;; Shifts Tetra left, right, clockwise or counterclockwise
-  ;; based on key-event
-  ;; Only makes a new world if the key pressed is a direction
-  (define (shift-piece w d)
-    (if (or (string=? "left" d)
-            (string=? "right" d)
-            (string=? "a" d)
-            (string=? "s" d)
-            (string=? "down" d)
-            (string=? "up" d))
-        (make-world (shift-piece-help (world-tetra w) (world-pile w) d)
-                    (world-pile w)
-                    (world-score w))
-        w))
-  
-  
-  ;; Helper function for shift-piece
-  ;; Determines if direction is for moving sideways, rotating, or putting piece directly on bottom
-  ;; Tetra, Pile, direction -> Tetra
-  (define (shift-piece-help tetra pile d)
-    (cond[(or (string=? "left" d) (string=? "right" d))
-          (move-side tetra pile d)]
-         [(or (string=? "a" d) (string=? "s" d) (string=? "up" d))
-          (tetra-rotate tetra pile d)]
-         [(string=? "down" d)
-          (move-down-bottom tetra pile)]))
-  
-  ;; Helper function for shift-piece-help
-  ;; Moves a Tetra left or right when legal to do so
-  ;; Tetra, Pile, direction -> Tetra
-  ;; Explanation: If moving the Tetra left or right will not move it out of bounds,
-  ;;              and moving it left or right will not move it into the pile,
-  ;;              the Tetra will be moved.  Otherwise, the Tetra will remain
-  ;;              in the same place.
-  (define (move-side tetra pile d)
-    (if (and (not (hit-sides? (move-blocks (tetra-blocks tetra) d)))
-             (not (hit-pile? (move-blocks (tetra-blocks tetra) d) pile)))
-        (cond[(string=? "left" d)
-              (ghost-tetra (make-tetra (make-posn (- (posn-x (tetra-center tetra)) GRID-SIZE)
-                                                  (posn-y (tetra-center tetra)))
-                                       (move-blocks (tetra-blocks tetra) d)
-                                       empty)
-                           pile)]
-             [(string=? "right" d)
-              (ghost-tetra (make-tetra (make-posn (+ (posn-x (tetra-center tetra)) GRID-SIZE)
-                                                  (posn-y (tetra-center tetra)))
-                                       (move-blocks (tetra-blocks tetra) d) empty)
-                           pile)])
-        tetra))
-  
-  ;; DID! TODO: map is probably best here
-  ;; Helper function for move-side
-  ;; Moves a BSet in a given direction (left or right)
-  ;; BSet, direction -> BSet
-  (define (move-blocks blocks d)
-    (local [(define (move-block a-block)
-              (cond[(string=? "left" d)
-                    (make-block (- (block-x a-block) GRID-SIZE)
-                                (block-y a-block) (block-color a-block))]
-                   [(string=? "right" d)
-                    (make-block (+ (block-x a-block) GRID-SIZE)
-                                (block-y a-block) (block-color a-block))]))]
-      (map (λ (block) (move-block block)) blocks)))
-  #|(cond[(cons? blocks)
-        (cons (move-block (first blocks) d) (move-blocks (rest blocks) d))]
-       [(empty? blocks) empty]))|#
-  
-  ;; DID! TODO: this can probably be a lambda/local
-  ;; Helper function for move-blocks
-  ;; Moves a single block in a direction (left or right)
-  ;; Block, direction -> Block
-  #|(define (move-block block d)
-  (cond[(string=? "left" d)
-        (make-block (- (block-x block) GRID-SIZE)
-                    (block-y block) (block-color block))]
-       [(string=? "right" d)
-        (make-block (+ (block-x block) GRID-SIZE)
-                    (block-y block) (block-color block))]))|#
-  
-  ;; Helper function for shift-piece-help
-  ;; Rotates a Tetra in a given direction (cw or ccw)
-  ;; Tetra, Pile, direction -> Tetra
-  ;; Explanation: If rotating the tetra in the given direction would cause
-  ;;              the Tetra to hit the Pile, does not rotate the Tetra.
-  ;;              If rotating the Tetra causes the Tetra to be out of bounds
-  ;;              on the left side, rotates it and moves it right until it is
-  ;;              back in bounds.
-  ;;              If rotating the Tetra causes it to be out of bounds on the
-  ;;              right side, rotates it and moves it left until it is in bounds.
-  ;;              If none of the above is true, simply rotates the Tetra.
-  (define (tetra-rotate tetra pile d)
-    (cond[(hit-pile? (rotate-blocks (tetra-blocks tetra) (tetra-center tetra) d) pile)
-          tetra]
-         [(hit-left? (rotate-blocks (tetra-blocks tetra) (tetra-center tetra) d))
-          (put-right (ghost-tetra (make-tetra (tetra-center tetra)
-                                              (rotate-blocks (tetra-blocks tetra) (tetra-center tetra) d)
-                                              empty)
-                                  pile)
-                     pile)]
-         [(hit-right? (rotate-blocks (tetra-blocks tetra) (tetra-center tetra) d))
-          (put-left (ghost-tetra (make-tetra (tetra-center tetra)
-                                             (rotate-blocks (tetra-blocks tetra) (tetra-center tetra) d)
-                                             empty)
-                                 pile)
-                    pile)]
-         [else (ghost-tetra (make-tetra (tetra-center tetra)
-                                        (rotate-blocks (tetra-blocks tetra) (tetra-center tetra) d)
-                                        empty)
-                            pile)]))
-  
-  ;; DID! TODO: map will probably work best here
-  ;; Helper funciton for tetra-rotate
-  ;; Rotates a BSet about a Posn
-  ;; BSet, Posn, direction -> BSet
-  (define (rotate-blocks blocks center d)
-    (local [(define (block-rotate block)
-              (cond[(string=? "a" d)
-                    (block-rotate-ccw center block)]
-                   [(or (string=? "s" d) (string=? "up" d))
-                    (block-rotate-cw center block)]))]
-      (map (λ (block) (block-rotate block)) blocks)))
-  #|(cond[(cons? blocks) (cons (block-rotate center (first blocks) d)
-                             (rotate-blocks (rest blocks) center d))]
-       [(empty? blocks) empty]))|#
-  
-  ;; DID! TODO: Could this be a lambda or local?
-  ;; Helper function for rotate-blocks
-  ;; Rotates the block 90 degrees about the Posn
-  ;; Posn, Block, direction -> Block
-  #|(define (block-rotate center block d)
-  (cond[(string=? "a" d)
-        (block-rotate-ccw center block)]
-       [(or (string=? "s" d) (string=? "up" d))
-        (block-rotate-cw center block)]))|#
-  
-  ;; This could also be a local in rotate-blocks...I guess
-  ;; Helper function for block-rotate
-  ;; Rotate the block 90 clockwise around the posn.
-  ;; block-rotate-ccw : Posn Block -> Block
-  (define (block-rotate-cw ctr blk)
-    (make-block (+ (posn-x ctr)
-                   (- (posn-y ctr)
-                      (block-y blk)))
-                (+ (posn-y ctr)
-                   (- (block-x blk)
-                      (posn-x ctr)))
-                (block-color blk)))
-  
-  ;; This could also be a local...but maybe that's going a bit overboard?
-  ;; Helper function for block-rotate
-  ;; Rotate the block 90 counter-clockwise around the posn.
-  ;; block-rotate-ccw : Posn Block -> Block
-  (define (block-rotate-ccw ctr blk)
-    (block-rotate-cw ctr 
-                     (block-rotate-cw ctr
-                                      (block-rotate-cw ctr blk))))
-  
-  ;; DID! TODO: ormap will probably work best here
-  ;; Determines if blocks are out of bounds
-  ;; BSet -> Boolean
-  (define (hit-sides? blocks)
-    (ormap (λ (block) (or (< (block-x block) (* 0 GRID-SIZE))
-                          (> (block-x block) (* 9 GRID-SIZE))))
-           blocks))
-  #|(cond[(cons? blocks)
-        (or (< (block-x (first blocks)) (* 0 GRID-SIZE))
-            (> (block-x (first blocks)) (* 9 GRID-SIZE))
-            (hit-sides? (rest blocks)))]
-       [(empty? blocks) false]))|#
-  
-  ;; DID! TODO:  ormap will probably work best here
-  ;; Determines if blocks are out of bounds to the left
-  ;; BSet -> Boolean
-  (define (hit-left? blocks)
-    (ormap (λ (block) (< (block-x block) (* 0 GRID-SIZE))) blocks))
-  #|(cond[(cons? blocks)
-        (or (< (block-x (first blocks)) (* 0 GRID-SIZE))
-            (hit-left? (rest blocks)))]
-       [(empty? blocks) false]))|#
-  
-  ;; DID! TODO: ormap will probably work best here
-  ;; Determines if blocks are out of bounds to the right
-  ;; BSet -> Boolean
-  (define (hit-right? blocks)
-    (ormap (λ (block) (> (block-x block) (* 9 GRID-SIZE))) blocks))
-  #|
-DELETE ME!!!
-DELETE ME!!!
-(cond[(cons? blocks)
-        (or (> (block-x (first blocks)) (* 9 GRID-SIZE))
-            (hit-right? (rest blocks)))]
-       [(empty? blocks) false])) DELETE ME!!!|#
-  
-  ;; DID! TODO: ormap will probably work best here
-  ;; Determines if a set of blocks overlaps the pile.
-  ;; BSet -> Boolean
-  (define (hit-pile? blocks pile)
-    (ormap (λ (block) (in-pile? block pile)) blocks))
-  #|(cond[(cons? blocks)
-        (or (in-pile? (first blocks) pile)
-            (hit-pile? (rest blocks) pile))]
-       [(empty? blocks) false]))|#
-  
-  ;; DID! TODO: I can't think of a loop for this...do we need one? I wrote one
-  ;; If tetra is out of bounds to the left, move right until in bounds
-  ;; Tetra, Pile -> Tetra
-  (define (put-right tetra pile)
-    (while-apply (λ (a-tetra)
-                   (ghost-tetra
-                    (make-tetra (make-posn (+ (posn-x (tetra-center a-tetra)) GRID-SIZE)
-                                           (posn-y (tetra-center a-tetra)))
-                                (move-blocks (tetra-blocks a-tetra) "right") empty) pile))
-                 (λ (a-tetra) (not (hit-left? (tetra-blocks a-tetra))))
-                 tetra))
-  
-  #|(cond[(hit-left? (tetra-blocks tetra))
-        (put-right (ghost-tetra (make-tetra (make-posn (+ (posn-x (tetra-center tetra)) GRID-SIZE)
-                                                       (posn-y (tetra-center tetra)))
-                                            (move-blocks (tetra-blocks tetra) "right")
+
+
+;; Makes a txt containing the user's score determined by pile size,
+;; at the correct location for a score.
+;; Pile -> txt
+(define (score current-score)
+  (+ 4 current-score))
+
+;; Determines if a set of blocks is overlapping with the pile,
+;; or has passed the lower bound of the grid.
+;; BSet, Pile -> Boolean
+(define (hit-bottom? blocks pile)
+  (ormap (λ (block) (or (in-pile? block pile)
+                        (> (block-y block) (* GRID-SIZE 19)))) blocks))
+
+;; Helper function for hit-bottom?
+;; Determines if a block is overlapping with the pile
+;; Block, Pile -> Boolean
+(define (in-pile? block pile)
+  (local [(define (same-position? block1 block2)
+            (and (= (block-x block1) (block-x block2))
+                 (= (block-y block1) (block-y block2))))]
+    (ormap (λ (b) (same-position? block b)) pile)))
+
+;; Moves a Tetra as far down as it can go
+;; Tetra, Pile -> Tetra
+(define (move-down-bottom tetra pile)
+  (while-apply move-down
+               (λ (a-tetra)
+                 (hit-bottom? (tetra-blocks (move-down a-tetra)) pile))
+               tetra))
+
+;; Given any Tetra, returns the same Tetra, but with a ghost underneath
+;; Tetra -> Tetra
+(define (ghost-tetra tetra pile)
+  (make-tetra (tetra-center tetra)
+              (tetra-blocks tetra)
+              (move-down-bottom (make-tetra (tetra-center tetra)
+                                            (seethru (tetra-blocks tetra))
+                                            empty)
+                                pile)))
+
+;; Colors a set of blocks light gray (for the ghost)
+;; BSet -> BSet
+(define (seethru blocks)
+  (map (λ (block) (make-block (block-x block)
+                              (block-y block)
+                              "LightGray"))
+       blocks))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;          SHIFT PIECE          ;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; World, Key -> World
+;; Shifts Tetra left, right, clockwise or counterclockwise
+;; based on key-event
+;; Only makes a new world if the key pressed is a direction
+(define (shift-piece w d)
+  (if (or (string=? "left" d)
+          (string=? "right" d)
+          (string=? "a" d)
+          (string=? "s" d)
+          (string=? "down" d)
+          (string=? "up" d))
+      (make-world (shift-piece-help (world-tetra w) (world-pile w) d)
+                  (world-pile w)
+                  (world-score w))
+      w))
+
+
+;; Helper function for shift-piece
+;; Determines if direction is for moving sideways, rotating, or putting piece directly on bottom
+;; Tetra, Pile, direction -> Tetra
+(define (shift-piece-help tetra pile d)
+  (cond[(or (string=? "left" d) (string=? "right" d))
+        (move-side tetra pile d)]
+       [(or (string=? "a" d) (string=? "s" d) (string=? "up" d))
+        (tetra-rotate tetra pile d)]
+       [(string=? "down" d)
+        (move-down-bottom tetra pile)]))
+
+;; Helper function for shift-piece-help
+;; Moves a Tetra left or right when legal to do so
+;; Tetra, Pile, direction -> Tetra
+;; Explanation: If moving the Tetra left or right will not move it out of bounds,
+;;              and moving it left or right will not move it into the pile,
+;;              the Tetra will be moved.  Otherwise, the Tetra will remain
+;;              in the same place.
+(define (move-side tetra pile d)
+  (if (and (not (hit-sides? (move-blocks (tetra-blocks tetra) d)))
+           (not (hit-pile? (move-blocks (tetra-blocks tetra) d) pile)))
+      (cond[(string=? "left" d)
+            (ghost-tetra (make-tetra (make-posn (- (posn-x (tetra-center tetra)) GRID-SIZE)
+                                                (posn-y (tetra-center tetra)))
+                                     (move-blocks (tetra-blocks tetra) d)
+                                     empty)
+                         pile)]
+           [(string=? "right" d)
+            (ghost-tetra (make-tetra (make-posn (+ (posn-x (tetra-center tetra)) GRID-SIZE)
+                                                (posn-y (tetra-center tetra)))
+                                     (move-blocks (tetra-blocks tetra) d) empty)
+                         pile)])
+      tetra))
+
+;; Helper function for move-side
+;; Moves a BSet in a given direction (left or right)
+;; BSet, direction -> BSet
+(define (move-blocks blocks d)
+  (local [(define (move-block a-block)
+            (cond[(string=? "left" d)
+                  (make-block (- (block-x a-block) GRID-SIZE)
+                              (block-y a-block) (block-color a-block))]
+                 [(string=? "right" d)
+                  (make-block (+ (block-x a-block) GRID-SIZE)
+                              (block-y a-block) (block-color a-block))]))]
+    (map (λ (block) (move-block block)) blocks)))
+
+;; Helper function for shift-piece-help
+;; Rotates a Tetra in a given direction (cw or ccw)
+;; Tetra, Pile, direction -> Tetra
+;; Explanation: If rotating the tetra in the given direction would cause
+;;              the Tetra to hit the Pile, does not rotate the Tetra.
+;;              If rotating the Tetra causes the Tetra to be out of bounds
+;;              on the left side, rotates it and moves it right until it is
+;;              back in bounds.
+;;              If rotating the Tetra causes it to be out of bounds on the
+;;              right side, rotates it and moves it left until it is in bounds.
+;;              If none of the above is true, simply rotates the Tetra.
+(define (tetra-rotate tetra pile d)
+  (cond[(hit-pile? (rotate-blocks (tetra-blocks tetra) (tetra-center tetra) d) pile)
+        tetra]
+       [(hit-left? (rotate-blocks (tetra-blocks tetra) (tetra-center tetra) d))
+        (put-right (ghost-tetra (make-tetra (tetra-center tetra)
+                                            (rotate-blocks (tetra-blocks tetra) (tetra-center tetra) d)
                                             empty)
                                 pile)
                    pile)]
-       [else tetra]))|#
-  
-  ;; DID! TODO: same as put-right
-  ;; If tetra is out of bounds to the right, move left until in bounds
-  ;; Tetra, Pile -> Tetra
-  (define (put-left tetra pile)
-    (while-apply (λ (a-tetra)
-                   (ghost-tetra
-                    (make-tetra (make-posn (- (posn-x (tetra-center a-tetra)) GRID-SIZE)
-                                           (posn-y (tetra-center a-tetra)))
-                                (move-blocks (tetra-blocks a-tetra) "left") empty) pile))
-                 (λ (a-tetra) (not (hit-right? (tetra-blocks a-tetra))))
-                 tetra))
-  #|(cond[(hit-right? (tetra-blocks tetra))
-        (put-left (ghost-tetra (make-tetra (make-posn (- (posn-x (tetra-center tetra)) GRID-SIZE)
-                                                      (posn-y (tetra-center tetra)))
-                                           (move-blocks (tetra-blocks tetra) "left")
+       [(hit-right? (rotate-blocks (tetra-blocks tetra) (tetra-center tetra) d))
+        (put-left (ghost-tetra (make-tetra (tetra-center tetra)
+                                           (rotate-blocks (tetra-blocks tetra) (tetra-center tetra) d)
                                            empty)
                                pile)
                   pile)]
-       [else tetra]))|#
-  
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;;;;;;;;;;;;;;;;;;;;;;;;;           OVERFLOW           ;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  
-  
-  ;; DID! TODO: Replace helper, use ormap
-  ;; Determines if the grid is overflowed with blocks
-  ;; Does the pile extend above the upper bound of the grid?
-  ;; World -> Boolean
-  (define (overflow? w)
-    (local [(define (pile-overflow? pile)
-              (ormap (λ (pile-block) (< (block-y pile-block) 0)) pile))]
-      (pile-overflow? (world-pile w))))
-  
-  (check-expect (overflow? (make-world TETRA-O empty "0")) false)
-  
-  #|
-DELETEME!!!
-DELETEME!!!
-;; TODO: ormap would work best here
-;; Helper function for overflow?
-;; Determines if a given pile extends above the upper grid bound
-;; Pile -> Boolean
-#;(define (pile-overflow? pile)
-    (ormap (λ (pile) (< (block-y pile) 0)) pile))
-DELETEME!!!
-DELETEME!!!
-|#
-  
-  
-  
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;;;;;;;;;;;;;;;;;;;;;;;;;         LAUNCH GAME!         ;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  
-  ;; A world reflecting the state of the start of the game
-  (define world1 (make-world (new-tetra (random 7) empty) empty 0))
-  
-  ;; Launch the game
-  (main world1)
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+       [else (ghost-tetra (make-tetra (tetra-center tetra)
+                                      (rotate-blocks (tetra-blocks tetra) (tetra-center tetra) d)
+                                      empty)
+                          pile)]))
+
+;; Helper funciton for tetra-rotate
+;; Rotates a BSet about a Posn
+;; BSet, Posn, direction -> BSet
+(define (rotate-blocks blocks center d)
+  (local [(define (block-rotate block)
+            (cond[(string=? "a" d)
+                  (block-rotate-ccw center block)]
+                 [(or (string=? "s" d) (string=? "up" d))
+                  (block-rotate-cw center block)]))]
+    (map (λ (block) (block-rotate block)) blocks)))
+
+;; Helper function for block-rotate
+;; Rotate the block 90 clockwise around the posn.
+;; block-rotate-ccw : Posn Block -> Block
+(define (block-rotate-cw ctr blk)
+  (make-block (+ (posn-x ctr)
+                 (- (posn-y ctr)
+                    (block-y blk)))
+              (+ (posn-y ctr)
+                 (- (block-x blk)
+                    (posn-x ctr)))
+              (block-color blk)))
+
+;; Helper function for block-rotate
+;; Rotate the block 90 counter-clockwise around the posn.
+;; block-rotate-ccw : Posn Block -> Block
+(define (block-rotate-ccw ctr blk)
+  (block-rotate-cw ctr 
+                   (block-rotate-cw ctr
+                                    (block-rotate-cw ctr blk))))
+
+;; Determines if blocks are out of bounds
+;; BSet -> Boolean
+(define (hit-sides? blocks)
+  (ormap (λ (block) (or (< (block-x block) (* 0 GRID-SIZE))
+                        (> (block-x block) (* 9 GRID-SIZE))))
+         blocks))
+
+;; Determines if blocks are out of bounds to the left
+;; BSet -> Boolean
+(define (hit-left? blocks)
+  (ormap (λ (block) (< (block-x block) (* 0 GRID-SIZE))) blocks))
+
+;; Determines if blocks are out of bounds to the right
+;; BSet -> Boolean
+(define (hit-right? blocks)
+  (ormap (λ (block) (> (block-x block) (* 9 GRID-SIZE))) blocks))
+
+;; Determines if a set of blocks overlaps the pile.
+;; BSet -> Boolean
+(define (hit-pile? blocks pile)
+  (ormap (λ (block) (in-pile? block pile)) blocks))
+
+;; If tetra is out of bounds to the left, move right until in bounds
+;; Tetra, Pile -> Tetra
+(define (put-right tetra pile)
+  (while-apply (λ (a-tetra)
+                 (ghost-tetra
+                  (make-tetra (make-posn (+ (posn-x (tetra-center a-tetra)) GRID-SIZE)
+                                         (posn-y (tetra-center a-tetra)))
+                              (move-blocks (tetra-blocks a-tetra) "right") empty) pile))
+               (λ (a-tetra) (not (hit-left? (tetra-blocks a-tetra))))
+               tetra))
+
+;; If tetra is out of bounds to the right, move left until in bounds
+;; Tetra, Pile -> Tetra
+(define (put-left tetra pile)
+  (while-apply (λ (a-tetra)
+                 (ghost-tetra
+                  (make-tetra (make-posn (- (posn-x (tetra-center a-tetra)) GRID-SIZE)
+                                         (posn-y (tetra-center a-tetra)))
+                              (move-blocks (tetra-blocks a-tetra) "left") empty) pile))
+               (λ (a-tetra) (not (hit-right? (tetra-blocks a-tetra))))
+               tetra))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;           OVERFLOW           ;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;; Determines if the grid is overflowed with blocks
+;; Does the pile extend above the upper bound of the grid?
+;; World -> Boolean
+(define (overflow? w)
+  (local [(define (pile-overflow? pile)
+            (ormap (λ (pile-block) (< (block-y pile-block) 0)) pile))]
+    (pile-overflow? (world-pile w))))
+
+(check-expect (overflow? (make-world TETRA-O empty "0")) false)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;         LAUNCH GAME!         ;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; A world reflecting the state of the start of the game
+(define world1 (make-world (new-tetra (random 7) empty) empty 0))
+
+;; Launch the game
+(main world1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
