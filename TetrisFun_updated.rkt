@@ -74,9 +74,9 @@
 ;; - "down" (automatically puts piece on bottom)
 ;; - "up" (clockwise rotation for 1 handed playing)
 
-;; TODO: The world should not store text, it should store a number. A few functions will have to change.
-;; A World is a (make-world Tetra Pile Text)
-(define-struct world (tetra pile text))
+
+;; A World is a (make-world Tetra Pile Number)
+(define-struct world (tetra pile score))
 
 ;; - Constant Tetra definitions:
 
@@ -185,6 +185,13 @@
               BLOCKS-S
               empty))
 
+;; Custom loop function
+;; Applies f to item until pred is true
+;; [X -> X], [X -> Boolean], X -> X
+(define (while-apply f pred item)
+  (cond[(pred item) item]
+       [else (while-apply f pred (f item))]))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;             MAIN             ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -209,7 +216,7 @@
 (define (draw-world w)
   (draw-tetra (world-tetra w)
               (draw-tetra (tetra-ghost (world-tetra w))
-                          (draw-blocks (world-pile w) (draw-score (world-text w) GRID)))))
+                          (draw-blocks (world-pile w) (draw-score (world-score w) GRID)))))
 
 ;; DID! TODO: Replace with lambda
 ;; Draws a single block
@@ -263,19 +270,18 @@
                                   "left" "top" GRID))
 
 ;; Draws Text on a scene
-;; Text, Image -> Image
+;; Number, Image -> Image
 (define (draw-score score scene)
-  (place-image (string->text (txt-content score))
-               (txt-x score)
-               (txt-y score)
+  (place-image (string->text (number->string score))
+               312.5 50
                scene))
 
-(check-expect (draw-score (make-txt "0" 1 2) GRID)
+(check-expect (draw-score 0 GRID)
               (place-image (text "0" 20 "black")
-                           1 2 GRID))
-(check-expect (draw-score (make-txt "FETTY WAP POINTS" 17 38) GRID)
-              (place-image (text "FETTY WAP POINTS" 20 "black")
-                           17 38 GRID))
+                           312.5 50 GRID))
+(check-expect (draw-score 12 GRID)
+              (place-image (text "12" 20 "black")
+                           312.5 50 GRID))
 
 ;; Turns a string into an Image of the string
 ;; String -> Text (... Text is an Image)
@@ -302,11 +308,11 @@
   (if (hit-bottom? (tetra-blocks (move-down (world-tetra w))) (world-pile w))
       (make-world (new-tetra (random 7) (grow-pile (world-pile w) (tetra-blocks (world-tetra w)))) 
                   (grow-pile (world-pile w) (tetra-blocks (world-tetra w)))
-                  (score (grow-pile (world-pile w) (tetra-blocks (world-tetra w)))))
+                  (score (world-score w)))
       (make-world (move-down (world-tetra w)) (world-pile w)
-                  (score (world-pile w)))))
+                  (world-score w))))
 
-;; TODO: move-down-blocks can be a lambda/local
+;; TODO: move-down-blocks can be a local
 ;; Moves the Tetra down by one grid-unit.
 ;; Tetra -> Tetra
 (define (move-down tetra)
@@ -366,8 +372,8 @@ DELETE ME|#
 ;; Makes a txt containing the user's score determined by pile size,
 ;; at the correct location for a score.
 ;; Pile -> txt
-(define (score pile)
-  (make-txt (number->string (compute-score pile)) 312.5 50))
+(define (score current-score)
+  (+ 4 current-score))
 
 ;; TODO: score should just be a number saved in the world...not calculated from scratch
 ;; Determines the player's score from the pile
@@ -413,13 +419,17 @@ DELETE ME|#
   (and (= (block-x block1) (block-x block2))
        (= (block-y block1) (block-y block2))))|#
 
-;; TODO: Do you know of any loops that might work here? This feels like a loop problem...I posted a piazza question
+;; DID! TODO: Do you know of any loops that might work here? I made my own
 ;; Moves a Tetra as far down as it can go
 ;; Tetra, Pile -> Tetra
 (define (move-down-bottom tetra pile)
-  (if (hit-bottom? (tetra-blocks (move-down tetra)) pile)
+  (while-apply move-down
+               (λ (a-tetra)
+                 (hit-bottom? (tetra-blocks (move-down a-tetra)) pile))
+               tetra))
+  #|(if (hit-bottom? (tetra-blocks (move-down tetra)) pile)
       tetra
-      (move-down-bottom (move-down tetra) pile)))
+      (move-down-bottom (move-down tetra) pile)))|#
 
 ;; Given any Tetra, returns the same Tetra, but with a ghost underneath
 ;; Tetra -> Tetra
@@ -463,7 +473,7 @@ DELETE ME|#
           (string=? "up" d))
       (make-world (shift-piece-help (world-tetra w) (world-pile w) d)
                   (world-pile w)
-                  (score (world-pile w)))
+                  (world-score w))
       w))
 
 
@@ -654,31 +664,46 @@ DELETE ME!!!
             (hit-pile? (rest blocks) pile))]
        [(empty? blocks) false]))|#
 
-;; TODO: I can't think of a loop for this...do we need one?
+;; DID! TODO: I can't think of a loop for this...do we need one? I wrote one
 ;; If tetra is out of bounds to the left, move right until in bounds
-;; Tetra -> Tetra
+;; Tetra, Pile -> Tetra
 (define (put-right tetra pile)
-  (cond[(hit-left? (tetra-blocks tetra))
+  (while-apply (λ (a-tetra)
+                 (ghost-tetra
+                  (make-tetra (make-posn (+ (posn-x (tetra-center a-tetra)) GRID-SIZE)
+                                         (posn-y (tetra-center a-tetra)))
+                              (move-blocks (tetra-blocks a-tetra) "right") empty) pile))
+               (λ (a-tetra) (not (hit-left? (tetra-blocks a-tetra))))
+               tetra))
+               
+  #|(cond[(hit-left? (tetra-blocks tetra))
         (put-right (ghost-tetra (make-tetra (make-posn (+ (posn-x (tetra-center tetra)) GRID-SIZE)
                                                        (posn-y (tetra-center tetra)))
                                             (move-blocks (tetra-blocks tetra) "right")
                                             empty)
                                 pile)
                    pile)]
-       [else tetra]))
+       [else tetra]))|#
 
-;; TODO: same as put-right
+;; DID! TODO: same as put-right
 ;; If tetra is out of bounds to the right, move left until in bounds
-;; Tetra -> Tetra
+;; Tetra, Pile -> Tetra
 (define (put-left tetra pile)
-  (cond[(hit-right? (tetra-blocks tetra))
+  (while-apply (λ (a-tetra)
+                 (ghost-tetra
+                  (make-tetra (make-posn (- (posn-x (tetra-center a-tetra)) GRID-SIZE)
+                                         (posn-y (tetra-center a-tetra)))
+                              (move-blocks (tetra-blocks a-tetra) "left") empty) pile))
+               (λ (a-tetra) (not (hit-right? (tetra-blocks a-tetra))))
+               tetra))
+  #|(cond[(hit-right? (tetra-blocks tetra))
         (put-left (ghost-tetra (make-tetra (make-posn (- (posn-x (tetra-center tetra)) GRID-SIZE)
                                                       (posn-y (tetra-center tetra)))
                                            (move-blocks (tetra-blocks tetra) "left")
                                            empty)
                                pile)
                   pile)]
-       [else tetra]))
+       [else tetra]))|#
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;           OVERFLOW           ;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -716,10 +741,10 @@ DELETEME!!!
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; A world reflecting the state of the start of the game
-(define world1 (make-world (new-tetra (random 7) empty) empty (score empty)))
+(define world1 (make-world (new-tetra (random 7) empty) empty 0))
 
 ;; Launch the game
-(main world1)
+;(main world1)
 
 
 
