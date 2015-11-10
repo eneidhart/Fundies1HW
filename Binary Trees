@@ -1,0 +1,59 @@
+; DATA DEFINITION:
+;; A BTN is one of
+;; - Number
+;; - (make-node BTN BTN)
+(define-struct node (left right))
+
+; btn-height: btn -> number
+; takes in a binary tree of numbers and computes the maximum distance
+; from the root to any leaf. Here "distance" is measured by adding 1
+; for each internal node on the way from the root to the leaf
+
+(check-expect (btn-height 42) 0)
+(check-expect (btn-height (make-node 2 (make-node 4 9))) 2)
+(check-expect (btn-height (make-node
+                           (make-node
+                            (make-node (make-node 3 3) (make-node 3 3))
+                            (make-node 2 2))
+                           (make-node
+                            (make-node (make-node 3 3) (make-node 3 3))
+                            (make-node 2 2)))) 4)
+
+(define (btn-height btn)
+  (cond [(number? btn) 0]
+        [(> (add1 (btn-height (node-right btn)))
+            (add1 (btn-height (node-left btn))))
+         (add1 (btn-height (node-right btn)))]
+        [else (add1 (btn-height (node-left btn)))]))
+
+
+; btn-sum: btn -> number
+; computes the sum of all leaves
+
+(check-expect (btn-sum 42) 42)
+(check-expect (btn-sum (make-node 2 (make-node 4 9))) 15)
+(check-expect (btn-sum (make-node
+                           (make-node
+                            (make-node (make-node 3 3) (make-node 3 3))
+                            (make-node 2 2))
+                           (make-node
+                            (make-node (make-node 3 3) (make-node 3 3))
+                            (make-node 2 2)))) 32)
+
+(define (btn-sum btn)
+  (cond [(number? btn) btn]
+        [(node? btn)
+         (+ (btn-sum (node-left btn))
+            (btn-sum (node-right btn)))]))
+
+; A leafy binary tree (LBT) is one of:
+; - 'leaf
+; - (make-tree LBT LBT)
+(define-struct tree [left right])
+
+; number -> list-of-leafy-binary-trees(lol)
+; consumes a natural number n and creates (a list of) all
+; the leafy binary treats that have height n
+(check-expect 
+
+
