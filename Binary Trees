@@ -9,6 +9,13 @@
 ; from the root to any leaf. Here "distance" is measured by adding 1
 ; for each internal node on the way from the root to the leaf
 
+(define (btn-height btn)
+  (cond [(number? btn) 0]
+        [(> (add1 (btn-height (node-right btn)))
+            (add1 (btn-height (node-left btn))))
+         (add1 (btn-height (node-right btn)))]
+        [else (add1 (btn-height (node-left btn)))]))
+
 (check-expect (btn-height 42) 0)
 (check-expect (btn-height (make-node 2 (make-node 4 9))) 2)
 (check-expect (btn-height (make-node
@@ -19,26 +26,9 @@
                             (make-node (make-node 3 3) (make-node 3 3))
                             (make-node 2 2)))) 4)
 
-(define (btn-height btn)
-  (cond [(number? btn) 0]
-        [(> (add1 (btn-height (node-right btn)))
-            (add1 (btn-height (node-left btn))))
-         (add1 (btn-height (node-right btn)))]
-        [else (add1 (btn-height (node-left btn)))]))
-
 
 ; btn-sum: btn -> number
 ; computes the sum of all leaves
-
-(check-expect (btn-sum 42) 42)
-(check-expect (btn-sum (make-node 2 (make-node 4 9))) 15)
-(check-expect (btn-sum (make-node
-                           (make-node
-                            (make-node (make-node 3 3) (make-node 3 3))
-                            (make-node 2 2))
-                           (make-node
-                            (make-node (make-node 3 3) (make-node 3 3))
-                            (make-node 2 2)))) 32)
 
 (define (btn-sum btn)
   (cond [(number? btn) btn]
@@ -46,14 +36,220 @@
          (+ (btn-sum (node-left btn))
             (btn-sum (node-right btn)))]))
 
+(check-expect (btn-sum 42) 42)
+(check-expect (btn-sum (make-node 2 (make-node 4 9))) 15)
+(check-expect (btn-sum (make-node
+                        (make-node
+                         (make-node (make-node 3 3) (make-node 3 3))
+                         (make-node 2 2))
+                        (make-node
+                         (make-node (make-node 3 3) (make-node 3 3))
+                         (make-node 2 2)))) 32)
+
 ; A leafy binary tree (LBT) is one of:
 ; - 'leaf
 ; - (make-tree LBT LBT)
 (define-struct tree [left right])
 
-; number -> list-of-leafy-binary-trees(lol)
-; consumes a natural number n and creates (a list of) all
-; the leafy binary treats that have height n
-(check-expect 
+; less-than-n: Number -> [List-of LBT]
+; takes a number and return all LBT of height less than n
+(define (less-than-n n)
+  (cond [(zero? n) empty]
+        [else (append (all-lbt (- n 1)) 
+                      (less-than-n (- n 1)))]))
+(check-expect (less-than-n 0) empty)
+(check-expect (less-than-n 1) (list 'leaf))
+(check-expect (less-than-n 2) (list (make-tree 'leaf 'leaf) 'leaf))
+(check-expect (less-than-n 3) (list
+                               (make-tree (make-tree 'leaf 'leaf)
+                                          (make-tree 'leaf 'leaf))
+                               (make-tree (make-tree 'leaf 'leaf)
+                                          'leaf)
+                               (make-tree 'leaf
+                                          (make-tree 'leaf 'leaf))
+                               (make-tree 'leaf
+                                          'leaf)
+                               'leaf))
 
+; add-lbt: LBT [List-of LBT] -> [List-of LBT]
+; takes a binary tree and a list of LBT and returns a list of LBT that 
+; adds the given LBT to every element of the list of LBT
+(define (add-lbt bt lbt)
+  (cond [(empty? lbt) empty]
+        [(cons? lbt) (cons (make-tree bt (first lbt))
+                    (add-lbt bt (rest lbt)))]))
+(check-expect (add-lbt (make-tree 'leaf 'leaf) empty) empty)
+(check-expect (add-lbt (make-tree 'leaf 'leaf)
+                       (list (make-tree 'leaf 'leaf)))
+              (list (make-tree (make-tree 'leaf 'leaf)
+                               (make-tree 'leaf 'leaf))))
+(check-expect (add-lbt (make-tree 'leaf 'leaf)
+                       (list (make-tree (make-tree 'leaf 'leaf)
+                                        (make-tree 'leaf 'leaf))))
+              (list (make-tree (make-tree 'leaf 'leaf)
+                               (make-tree (make-tree 'leaf 'leaf)
+                                          (make-tree 'leaf 'leaf)))))
 
+; combine-lbt-lists: [List-of LBT] [List-of LBT] -> [List-of LBT]
+; takes two list of LBT
+; and returns a list of LBT which combine the given list of LBT together
+(define (combine-lbt-lists a b)
+  (cond [(empty? a) empty]
+        [else (append (add-lbt (first a) b)
+                      (combine-lbt-lists (rest a) b))]))
+(check-expect (combine-lbt-lists empty empty) empty)
+(check-expect (combine-lbt-lists empty (make-tree 'leaf 'leaf)) empty)
+(check-expect (combine-lbt-lists (list (make-tree 'leaf 'leaf)
+                                       (make-tree (make-tree 'leaf 'leaf)
+                                                  'leaf))
+                                 (list (make-tree 'leaf 'leaf)))
+              (list
+               (make-tree (make-tree 'leaf 'leaf)
+                          (make-tree 'leaf 'leaf))
+               (make-tree (make-tree (make-tree 'leaf 'leaf)
+                                     'leaf)
+                          (make-tree 'leaf 'leaf))))
+
+; all-lbt: Number -> [Listof BT]
+; consumes a natural number n 
+; and creates (a list of) all leafy binary trees of height n
+(define (all-lbt n)
+  (cond [(zero? n) (list 'leaf)]
+        [else (append (combine-lbt-lists (all-lbt (- n 1)) 
+                                         (all-lbt (- n 1)))
+                      (combine-lbt-lists (all-lbt (- n 1)) 
+                                         (less-than-n (- n 1)))
+                      (combine-lbt-lists (less-than-n (- n 1)) 
+                                         (all-lbt (- n 1))))]))
+
+(check-expect (all-lbt 0) (list 'leaf))
+(check-expect (all-lbt 1) (list (make-tree 'leaf 'leaf)))
+(check-expect (all-lbt 2) (list (make-tree (make-tree 'leaf 'leaf) 
+                                          (make-tree 'leaf 'leaf))
+                               (make-tree (make-tree 'leaf 'leaf) 'leaf)
+                               (make-tree 'leaf 
+                                          (make-tree 'leaf 'leaf))))
+(check-expect (all-lbt 3) (list
+                          (make-tree
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            (make-tree 'leaf 'leaf))
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            (make-tree 'leaf 'leaf)))
+                          (make-tree
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            (make-tree 'leaf 'leaf))
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            'leaf))
+                          (make-tree
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            (make-tree 'leaf 'leaf))
+                           (make-tree
+                            'leaf
+                            (make-tree 'leaf 'leaf)))
+                          (make-tree
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            'leaf)
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            (make-tree 'leaf 'leaf)))
+                          (make-tree
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            'leaf)
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            'leaf))
+                          (make-tree
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            'leaf)
+                           (make-tree
+                            'leaf
+                            (make-tree 'leaf 'leaf)))
+                          (make-tree
+                           (make-tree
+                            'leaf
+                            (make-tree 'leaf 'leaf))
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            (make-tree 'leaf 'leaf)))
+                          (make-tree
+                           (make-tree
+                            'leaf
+                            (make-tree 'leaf 'leaf))
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            'leaf))
+                          (make-tree
+                           (make-tree
+                            'leaf
+                            (make-tree 'leaf 'leaf))
+                           (make-tree
+                            'leaf
+                            (make-tree 'leaf 'leaf)))
+                          (make-tree
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            (make-tree 'leaf 'leaf))
+                           (make-tree 'leaf 'leaf))
+                          (make-tree
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            (make-tree 'leaf 'leaf))
+                           'leaf)
+                          (make-tree
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            'leaf)
+                           (make-tree 'leaf 'leaf))
+                          (make-tree
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            'leaf)
+                           'leaf)
+                          (make-tree
+                           (make-tree
+                            'leaf
+                            (make-tree 'leaf 'leaf))
+                           (make-tree 'leaf 'leaf))
+                          (make-tree
+                           (make-tree
+                            'leaf
+                            (make-tree 'leaf 'leaf))
+                           'leaf)
+                          (make-tree
+                           (make-tree 'leaf 'leaf)
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            (make-tree 'leaf 'leaf)))
+                          (make-tree
+                           (make-tree 'leaf 'leaf)
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            'leaf))
+                          (make-tree
+                           (make-tree 'leaf 'leaf)
+                           (make-tree
+                            'leaf
+                            (make-tree 'leaf 'leaf)))
+                          (make-tree
+                           'leaf
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            (make-tree 'leaf 'leaf)))
+                          (make-tree
+                           'leaf
+                           (make-tree
+                            (make-tree 'leaf 'leaf)
+                            'leaf))
+                          (make-tree
+                           'leaf
+                           (make-tree
+                            'leaf
+                            (make-tree 'leaf 'leaf)))))
